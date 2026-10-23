@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Lint Swift
+        run: make lint
+      - name: Build and package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: scripts/package-release.sh "$RELEASE_TAG"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "build/Void-Journal-${RELEASE_TAG}-macOS-universal.zip" \
+            "build/Void-Journal-${RELEASE_TAG}-macOS-universal.zip.sha256" \
+            --verify-tag \
+            --title "Void Journal $RELEASE_TAG" \
+            --generate-notes \
+            --notes-file .github/release-notes.md
