@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace VoidJournal;
@@ -12,6 +13,10 @@ public partial class MainWindow : Window
     private readonly Preferences preferences = Preferences.Load();
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly DispatcherTimer menuHideTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
+    private double menuHeight = 48;
+    private bool chromeRevealed = true;
+    private int chromeAnimationGeneration;
     private TimeSpan lastRenderingTime = TimeSpan.MinValue;
     private double lastActiveFrame = -10;
     private bool NeedsAnimationFrames => introducing || Surface.Engine.Glyphs.Count > 0 || clock.Elapsed.TotalSeconds - lastActiveFrame < 1.5;
@@ -26,6 +31,16 @@ public partial class MainWindow : Window
         InitializeComponent();
         Surface.Preferences = preferences;
         ApplyPreferences();
+        MenuPopupAnimation.Attach(AppMenu);
+        IntroTheme.SelectionChanged += (_, _) =>
+        {
+            if (!introducing) return;
+            string theme = IntroTheme.SelectedIndex == 0 ? "Void" : "Dissolve";
+            if (preferences.Theme == theme) return;
+            preferences.Theme = theme;
+            SavePreferences();
+            RestartIntroDemo();
+        };
         Input.TextChanged += (_, _) => { if (!clearing && !composing) Dispatcher.BeginInvoke(DispatcherPriority.Background, CommitInput); };
         TextCompositionManager.AddPreviewTextInputStartHandler(Input, (_, _) =>
         {
@@ -39,22 +54,52 @@ public partial class MainWindow : Window
             Dispatcher.BeginInvoke(DispatcherPriority.Background, CommitInput);
         });
         PreviewKeyDown += OnKeyDown;
+        PreviewMouseMove += (_, e) =>
+        {
+            if (!fullScreen) return;
+            if (e.GetPosition(this).Y <= 6) RevealFullScreenMenu();
+            else if (!TopChrome.IsMouseOver) ScheduleMenuHide();
+        };
+        MouseLeave += (_, _) => ScheduleMenuHide();
+        TopChrome.MouseEnter += (_, _) => menuHideTimer.Stop();
+        TopChrome.MouseLeave += (_, _) => ScheduleMenuHide();
+        TopChrome.LostKeyboardFocus += (_, _) => ScheduleMenuHide();
+        AppMenu.AddHandler(MenuItem.SubmenuOpenedEvent, new RoutedEventHandler((_, _) =>
+        {
+            if (!fullScreen) return;
+            menuHideTimer.Stop();
+            // A popup is a separate window: keep its placement target stationary while open.
+            SetChromeVisible(true, animate: false);
+        }));
+        AppMenu.AddHandler(MenuItem.SubmenuClosedEvent, new RoutedEventHandler((_, _) => ScheduleMenuHide()));
+        TopChrome.SizeChanged += (_, _) =>
+        {
+            if (TopChrome.ActualHeight > 0) menuHeight = TopChrome.ActualHeight;
+            UpdateWritingMargin();
+        };
+        menuHideTimer.Tick += (_, _) =>
+        {
+            menuHideTimer.Stop();
+            if (!TopChrome.IsMouseOver && !TopChrome.IsKeyboardFocusWithin && !HasOpenMenu) HideFullScreenMenu();
+        };
         WritingArea.MouseDown += (_, _) => { if (!introducing) Input.Focus(); };
         timer.Tick += (_, _) => { if (WindowState == WindowState.Minimized || !NeedsAnimationFrames) Frame(); };
         CompositionTarget.Rendering += OnRendering;
         Loaded += (_, _) =>
         {
             timer.Start();
+            UpdateWritingMargin();
             if (!preferences.HasSeenIntro) ShowIntro();
             else Input.Focus();
         };
-        Closed += (_, _) => { CompositionTarget.Rendering -= OnRendering; timer.Stop(); Surface.Engine.Reset(); Input.Clear(); };
+        Closed += (_, _) => { CompositionTarget.Rendering -= OnRendering; timer.Stop(); menuHideTimer.Stop(); Surface.Engine.Reset(); Input.Clear(); };
     }
 
     private void CommitInput()
     {
         if (composing || clearing || Input.Text.Length == 0) return;
         if (!introducing) Surface.Engine.Insert(Input.Text);
+        HideFullScreenMenu();
         clearing = true;
         Input.Clear(); // Also prevents native undo or clipboard commands from retaining a journal history.
         clearing = false;
@@ -118,10 +163,18 @@ public partial class MainWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (fullScreen && key is Key.LeftAlt or Key.RightAlt or Key.F10) RevealFullScreenMenu();
         if (composing) return;
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; }
-        else if (e.Key == Key.Escape && fullScreen) { ToggleFullScreen(); e.Handled = true; }
+        else if (e.Key == Key.Escape && fullScreen)
+        {
+            if (HasOpenMenu) return; // Let the native menu dismiss its submenu first.
+            if (chromeRevealed) HideFullScreenMenu();
+            else ToggleFullScreen();
+            e.Handled = true;
+        }
         else if (ctrl && e.Key == Key.OemComma) { OpenSettings(); e.Handled = true; }
         else if (!introducing && (Input.IsKeyboardFocusWithin || ctrl))
         {
@@ -146,35 +199,126 @@ public partial class MainWindow : Window
 
     private void ToggleFullScreen()
     {
-        if (!fullScreen)
+        bool entering = !fullScreen;
+        if (entering) previousState = WindowState;
+
+        // Apply the destination layout before native resize notifications arrive.
+        // Otherwise SizeChanged briefly restores the windowed menu margin mid-transition.
+        using (Dispatcher.DisableProcessing())
         {
-            previousState = WindowState;
-            WindowState = WindowState.Normal;
-            WindowStyle = WindowStyle.None;
-            ResizeMode = ResizeMode.NoResize;
-            WindowState = WindowState.Maximized;
+            fullScreen = entering;
+            menuHideTimer.Stop();
+            ExitFullScreenButton.Visibility = entering ? Visibility.Visible : Visibility.Collapsed;
+            SetChromeVisible(!entering, animate: false);
+            UpdateWritingMargin();
+
+            if (entering)
+            {
+                WindowStyle = WindowStyle.None;
+                ResizeMode = ResizeMode.NoResize;
+                // Recalculate maximized bounds after removing the frame; otherwise Windows
+                // can retain the taskbar work area. Processing stays deferred for this reset.
+                if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
+                WindowState = WindowState.Maximized;
+            }
+            else
+            {
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                ResizeMode = ResizeMode.CanResize;
+                WindowState = previousState;
+            }
         }
-        else
+        if (introducing) IntroTheme.Focus();
+        else Input.Focus();
+    }
+
+    private bool HasOpenMenu => AppMenu.Items.OfType<MenuItem>().Any(item => item.IsSubmenuOpen);
+
+    private void UpdateWritingMargin() => WritingArea.Margin = fullScreen
+        ? new Thickness(0)
+        : new Thickness(0, menuHeight, 0, 0);
+
+    private void RevealFullScreenMenu()
+    {
+        if (!fullScreen) return;
+        menuHideTimer.Stop();
+        if (!chromeRevealed) SetChromeVisible(true);
+    }
+
+    private void ScheduleMenuHide()
+    {
+        if (!fullScreen || !chromeRevealed || menuHideTimer.IsEnabled) return;
+        menuHideTimer.Start();
+    }
+
+    private void HideFullScreenMenu()
+    {
+        if (!fullScreen || !chromeRevealed || HasOpenMenu) return;
+        menuHideTimer.Stop();
+        if (TopChrome.IsKeyboardFocusWithin)
         {
-            WindowState = WindowState.Normal;
-            WindowStyle = WindowStyle.SingleBorderWindow;
-            ResizeMode = ResizeMode.CanResize;
-            WindowState = previousState;
+            if (introducing) IntroTheme.Focus();
+            else Input.Focus();
         }
-        fullScreen = !fullScreen;
+        SetChromeVisible(false);
+    }
+
+    private void SetChromeVisible(bool visible, bool animate = true)
+    {
+        // Start from the current animated values so reversing a fade never jumps.
+        double opacity = TopChrome.Opacity;
+        double offset = ChromeTranslation.Y;
+        int generation = ++chromeAnimationGeneration;
+        chromeRevealed = visible;
+        TopChrome.BeginAnimation(OpacityProperty, null);
+        ChromeTranslation.BeginAnimation(TranslateTransform.YProperty, null);
+        TopChrome.Opacity = visible ? 1 : 0;
+        ChromeTranslation.Y = visible ? 0 : -12;
+        TopChrome.IsHitTestVisible = visible;
+        if (!animate || !SystemParameters.ClientAreaAnimation)
+        {
+            TopChrome.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            return;
+        }
+
+        if (visible && TopChrome.Visibility != Visibility.Visible)
+        {
+            opacity = 0;
+            offset = -12;
+        }
+        TopChrome.Visibility = Visibility.Visible;
+        var duration = TimeSpan.FromMilliseconds(visible ? 240 : 200);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var fade = new DoubleAnimation(opacity, visible ? 1 : 0, duration) { EasingFunction = easing };
+        fade.Completed += (_, _) =>
+        {
+            if (generation != chromeAnimationGeneration) return;
+            TopChrome.BeginAnimation(OpacityProperty, null);
+            ChromeTranslation.BeginAnimation(TranslateTransform.YProperty, null);
+            if (!chromeRevealed) TopChrome.Visibility = Visibility.Collapsed;
+        };
+        TopChrome.BeginAnimation(OpacityProperty, fade);
+        ChromeTranslation.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(offset, visible ? 0 : -12, duration) { EasingFunction = easing });
     }
 
     private void ShowIntro()
     {
-        Surface.Engine.Reset();
-        Surface.Engine.AutoRelease = false;
         introducing = true;
-        introIndex = 0;
-        introTime = clock.Elapsed.TotalSeconds;
         Input.IsEnabled = false;
         IntroCard.Visibility = Visibility.Visible; // Can skip the demonstration with keyboard or mouse.
         IntroTheme.SelectedIndex = preferences.Theme == "Void" ? 0 : 1;
+        RestartIntroDemo();
         IntroTheme.Focus();
+    }
+
+    private void RestartIntroDemo()
+    {
+        Surface.Engine.Reset();
+        Surface.Engine.AutoRelease = false;
+        introIndex = 0;
+        introTime = clock.Elapsed.TotalSeconds;
+        Surface.InvalidateVisual();
     }
     private void FinishIntro(bool enterFullScreen)
     {

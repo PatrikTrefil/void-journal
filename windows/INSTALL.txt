@@ -10,6 +10,9 @@ Ctrl+,: settings
 Ctrl+1 / Ctrl+2: Void / Dissolve
 Ctrl++ / Ctrl+- / Ctrl+0: text size
 F11: full screen; Esc: leave full screen
+The full-screen menu hides automatically. Move to the top edge or press Alt/F10 to reveal it.
+Use the Exit full screen button at the top right of that bar to return to a window.
+Esc dismisses an open menu before leaving full screen.
 Ctrl+V: paste; Ctrl+Backspace: delete last unreleased word
 
 Writing stays in memory and is never saved by the app.

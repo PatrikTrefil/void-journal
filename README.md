@@ -84,6 +84,10 @@ keyboard menus, system appearance, high contrast, and Windows animation preferen
 Use **Ctrl+Enter** to release everything, **Ctrl+,** for Settings, **F11** for full screen,
 **Ctrl+1/2** for themes, and **Ctrl++/−/0** for text size. Only settings are written to
 `%LOCALAPPDATA%\VoidJournal\preferences.json`.
+In full screen, the menu hides automatically. Move the pointer to the top edge or press
+**Alt** / **F10** to reveal it with a gentle fade and slide. It overlays the page without
+moving your writing, with an **Exit full screen** button at the top right. The transition
+respects Windows animation settings.
 
 ## Build it yourself
 
@@ -189,6 +193,6 @@ windows/scripts/          Self-contained Windows release packaging
 windows/installer/        Per-user Windows installer definition
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the product spec and architecture notes.
+See [AGENTS.md](AGENTS.md) for the product spec and architecture notes.
 
 </details>
