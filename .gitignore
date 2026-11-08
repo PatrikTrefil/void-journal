@@ -3,3 +3,7 @@ build/
 .swiftpm/
 *.xcodeproj/
 .DS_Store
+bin/
+obj/
+.dotnet/
+.vs/

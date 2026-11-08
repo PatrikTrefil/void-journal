@@ -1,10 +1,10 @@
 .PHONY: app run debug install clean reset-intro format lint screenshots release
 
 app:
-	scripts/build-app.sh release
+	bash scripts/build-app.sh release
 
 debug:
-	scripts/build-app.sh debug
+	bash scripts/build-app.sh debug
 
 run: app
 	open "build/Void Journal.app"
@@ -17,10 +17,10 @@ reset-intro:
 	defaults delete dev.voidjournal.VoidJournal hasSeenIntro || true
 
 screenshots:
-	scripts/take-screenshots.sh
+	bash scripts/take-screenshots.sh
 
 release:
-	scripts/package-release.sh "$(VERSION)"
+	bash scripts/package-release.sh "$(VERSION)"
 
 SWIFT_SOURCES = Sources scripts Package.swift
 

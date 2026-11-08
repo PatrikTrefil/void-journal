@@ -9,11 +9,11 @@ FRAMES="$(mktemp -d)"
 trap 'rm -rf "$FRAMES"' EXIT
 "$BIN" --snapshots "$FRAMES"
 
-mkdir -p docs/screenshots
+mkdir -p ../docs/screenshots
 for theme in void dissolve; do
     for mode in dark light; do
         sips -s format jpeg -s formatOptions 88 -Z 1400 \
-            "$FRAMES/$theme-$mode-0.png" --out "docs/screenshots/$theme-$mode.jpg" >/dev/null
+            "$FRAMES/$theme-$mode-0.png" --out "../docs/screenshots/$theme-$mode.jpg" >/dev/null
     done
 done
 echo "Updated docs/screenshots"

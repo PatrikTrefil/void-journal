@@ -12,7 +12,7 @@ fi
 
 export APP_VERSION="${TAG#v}"
 export APP_BUILD_NUMBER="${GITHUB_RUN_NUMBER:-1}"
-scripts/build-app.sh release universal
+bash scripts/build-app.sh release universal
 
 ARCHIVE="Void-Journal-${TAG}-macOS-universal.zip"
 ditto -c -k --sequesterRsrc --keepParent "build/Void Journal.app" "build/$ARCHIVE"

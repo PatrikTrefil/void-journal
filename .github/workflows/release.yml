@@ -12,31 +12,87 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  macos:
     runs-on: macos-15
     timeout-minutes: 20
-    permissions:
-      contents: write
+    defaults:
+      run:
+        working-directory: macos
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Lint Swift
         run: make lint
-      - name: Build and package
+      - name: Build universal macOS archive
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: scripts/package-release.sh "$RELEASE_TAG"
-      - name: Publish GitHub Release
+        run: bash scripts/package-release.sh "$RELEASE_TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            macos/build/*.zip
+            macos/build/*.sha256
+          if-no-files-found: error
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check journal behavior
+        run: dotnet run --project windows/VoidJournal.Tests -c Release
+      - name: Build Windows archive
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: ./windows/scripts/package-release.ps1 -Tag $env:RELEASE_TAG -Runtime ${{ matrix.runtime }} -Installer
+      - name: Check installer and uninstaller
+        if: matrix.runtime == 'win-x64'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: ./windows/scripts/test-installer.ps1 -InstallerPath "./windows/build/Void-Journal-$env:RELEASE_TAG-Windows-x64-Setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.runtime }}
+          path: |
+            windows/build/*.zip
+            windows/build/*-Setup.exe
+            windows/build/*.sha256
+          if-no-files-found: error
+  publish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish both platforms together
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" \
-            "build/Void-Journal-${RELEASE_TAG}-macOS-universal.zip" \
-            "build/Void-Journal-${RELEASE_TAG}-macOS-universal.zip.sha256" \
-            --verify-tag \
-            --title "Void Journal $RELEASE_TAG" \
-            --generate-notes \
-            --notes-file .github/release-notes.md
+          test "$(find release-assets -maxdepth 1 -name '*.zip' | wc -l)" -eq 3
+          test "$(find release-assets -maxdepth 1 -name '*-Setup.exe' | wc -l)" -eq 2
+          test "$(find release-assets -maxdepth 1 -name '*.sha256' | wc -l)" -eq 5
+          (cd release-assets && sha256sum -c *.sha256)
+          gh release create "$RELEASE_TAG" release-assets/* \
+            --verify-tag --title "Void Journal $RELEASE_TAG" \
+            --generate-notes --notes-file .github/release-notes.md

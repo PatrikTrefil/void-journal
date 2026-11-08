@@ -1,0 +1,17 @@
+Void Journal for Windows
+
+Requires Windows 10 22H2 or Windows 11.
+Extract the ZIP to a folder, then open VoidJournal.exe.
+The .NET runtime is included; no separate installation is required.
+Choose x64 for Intel/AMD PCs or ARM64 for Windows on Arm.
+
+Ctrl+Enter: let everything go
+Ctrl+,: settings
+Ctrl+1 / Ctrl+2: Void / Dissolve
+Ctrl++ / Ctrl+- / Ctrl+0: text size
+F11: full screen; Esc: leave full screen
+Ctrl+V: paste; Ctrl+Backspace: delete last unreleased word
+
+Writing stays in memory and is never saved by the app.
+Only preferences are saved to %LOCALAPPDATA%\VoidJournal\preferences.json.
+This portable build is unsigned. Windows SmartScreen may show a warning.

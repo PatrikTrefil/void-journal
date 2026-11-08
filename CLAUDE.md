@@ -1,13 +1,17 @@
 # Void Journal
 
-A native macOS app for writing your thoughts down and letting them go. As you write, older
+A native macOS and Windows app for writing your thoughts down and letting them go. As you write, older
 words slowly disappear with a satisfying animation. Nothing is ever saved.
 
 ## Product spec (source of truth)
 
 - **Purpose:** a very simple journal where your words vanish as you write.
   Simplicity is a feature. Push back on additions that clutter it.
-- **Platform:** macOS desktop only, written in Swift with SwiftUI and AppKit. It should feel as
+- **Platforms:** `macos/` contains the Swift/SwiftUI/AppKit app; `windows/` contains the C#/.NET 10 WPF app.
+  Keep both apps native to their platform. Windows uses Fluent controls, standard window chrome,
+  Ctrl shortcuts, native TextBox input for IMEs, and system animation/high contrast settings.
+  Journal text must never be persisted. Windows preferences alone live in LocalAppData.
+  The Mac app is written in Swift with SwiftUI and AppKit. It should feel as
   native as possible: system fonts, standard menus, a Settings window, native buttons and
   pickers, full screen support, hidden-until-needed window chrome, and respect for
   Reduce Motion.
@@ -46,7 +50,23 @@ words slowly disappear with a satisfying animation. Nothing is ever saved.
 
 ## Building (no Xcode required)
 
-The project is a Swift package. A script assembles a real `.app` bundle from it.
+Run Mac commands from `macos/`. It is a Swift package; a script assembles a real `.app` bundle.
+Run Windows commands from the repository root:
+
+```powershell
+dotnet run --project windows/VoidJournal
+dotnet run --project windows/VoidJournal.Tests -c Release
+./windows/scripts/package-release.ps1 -Tag v1.0.0 -Runtime win-x64
+```
+
+CI builds macOS universal and Windows x64/ARM64 ZIPs and per-user setup EXEs. The x64 job
+smoke-tests install/uninstall. Use `-Installer` when packaging Windows locally to also build
+the installer; the script bootstraps a pinned, SHA-256-verified Inno Setup compiler in ignored
+build output. Animation runs from WPF's composition callback; glyph geometry and brushes
+are frozen and cached, and particles are batched by opacity. Keep easing time-based.
+Tag releases publish all five downloads and checksums only after all builds succeed.
+The remaining architecture notes describe
+the Mac implementation; all relative paths below are inside `macos/`.
 
 ```bash
 make run           # build release .app into ./build and open it

@@ -13,9 +13,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  macos:
     runs-on: macos-15
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: macos
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,4 +26,26 @@ jobs:
       - name: Lint Swift
         run: make lint
       - name: Check universal release packaging
-        run: scripts/package-release.sh v0.0.0
+        run: bash scripts/package-release.sh v0.0.0
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check journal behavior
+        run: dotnet run --project windows/VoidJournal.Tests -c Release
+      - name: Check Windows release packaging
+        shell: pwsh
+        run: ./windows/scripts/package-release.ps1 -Tag v0.0.0 -Runtime ${{ matrix.runtime }} -Installer
+      - name: Check installer and uninstaller
+        if: matrix.runtime == 'win-x64'
+        shell: pwsh
+        run: ./windows/scripts/test-installer.ps1 -InstallerPath ./windows/build/Void-Journal-v0.0.0-Windows-x64-Setup.exe
