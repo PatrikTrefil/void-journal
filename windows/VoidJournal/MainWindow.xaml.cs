@@ -41,7 +41,7 @@ public partial class MainWindow : Window
             SavePreferences();
             RestartIntroDemo();
         };
-        Input.TextChanged += (_, _) => { if (!clearing && !composing) Dispatcher.BeginInvoke(DispatcherPriority.Background, CommitInput); };
+        Input.TextChanged += (_, _) => { if (!clearing && !composing) Dispatcher.BeginInvoke(DispatcherPriority.Normal, CommitInput); };
         TextCompositionManager.AddPreviewTextInputStartHandler(Input, (_, _) =>
         {
             composing = true;
@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         {
             composing = false;
             Input.Foreground = Brushes.Transparent;
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, CommitInput);
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, CommitInput);
         });
         PreviewKeyDown += OnKeyDown;
         PreviewMouseMove += (_, e) =>

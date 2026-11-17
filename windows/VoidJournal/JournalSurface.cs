@@ -27,10 +27,14 @@ public sealed class JournalSurface : FrameworkElement
     private bool gradientDark;
     private double displayLine;
     private int droppedLines;
+    private double layoutWidth = -1;
+    private int layoutCount = -1, layoutFirstId = -1, layoutLastId = -1;
+    private double caretX;
+    private int caretLine;
     private bool systemDark;
     private double lastAppearanceCheck = -10;
 
-    public void ClearTextCache() { textCache.Clear(); brushes.Clear(); }
+    public void ClearTextCache() { textCache.Clear(); brushes.Clear(); layoutCount = -1; }
 
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {
@@ -81,34 +85,9 @@ public sealed class JournalSurface : FrameworkElement
         double size = Preferences.TextSize, lineHeight = size * 1.65;
         double width = Math.Max(120, Math.Min(ActualWidth - 96, 680 * size / 22));
         Engine.MaximumKeep = Math.Max(72, (int)(width * 1.5 / (size * .52)));
-        positions.Clear();
-        double x = 0;
-        int line = 0, lastBreak = -1;
-        for (int i = 0; i < Engine.Glyphs.Count; i++)
-        {
-            var glyph = Engine.Glyphs[i];
-            double advance = Measure(glyph.Text).Advance;
-            if (glyph.Text == "\n")
-            {
-                positions.Add(new Point(x, line));
-                x = 0; line++; lastBreak = -1;
-                continue;
-            }
-            if (!glyph.IsBreak && x + advance > width && x > 0)
-            {
-                line++; x = 0;
-                if (lastBreak >= 0)
-                    for (int j = lastBreak + 1; j < i; j++)
-                    {
-                        positions[j] = new Point(x, line);
-                        x += Measure(Engine.Glyphs[j].Text).Advance;
-                    }
-                lastBreak = -1;
-            }
-            positions.Add(new Point(x, line));
-            x += advance;
-            if (glyph.IsBreak) lastBreak = i;
-        }
+        UpdateLayout(width);
+        double x = caretX;
+        int line = caretLine;
         double target = droppedLines + line;
         displayLine = reduceMotion ? target : displayLine + (target - displayLine) * (1 - Math.Exp(-Math.Clamp(FrameDelta, 0, .1) * 9));
         double left = (ActualWidth - width) / 2;
@@ -220,6 +199,50 @@ public sealed class JournalSurface : FrameworkElement
         if (trim > 0) Engine.Trim(trim);
         // Avoid retaining every grapheme ever typed in long-running sessions.
         if (textCache.Count > 2048) ClearTextCache();
+    }
+
+    // Wrapping depends on text and column width, not animation progress. Reuse it
+    // while glyphs fade, particles drift and the viewport glides.
+    private void UpdateLayout(double width)
+    {
+        int count = Engine.Glyphs.Count;
+        int firstId = count == 0 ? -1 : Engine.Glyphs[0].Id;
+        int lastId = count == 0 ? -1 : Engine.Glyphs[^1].Id;
+        if (layoutWidth == width && layoutCount == count && layoutFirstId == firstId && layoutLastId == lastId) return;
+        layoutWidth = width;
+        layoutCount = count;
+        layoutFirstId = firstId;
+        layoutLastId = lastId;
+        positions.Clear();
+        double x = 0;
+        int line = 0, lastBreak = -1;
+        for (int i = 0; i < Engine.Glyphs.Count; i++)
+        {
+            var glyph = Engine.Glyphs[i];
+            double advance = Measure(glyph.Text).Advance;
+            if (glyph.Text == "\n")
+            {
+                positions.Add(new Point(x, line));
+                x = 0; line++; lastBreak = -1;
+                continue;
+            }
+            if (!glyph.IsBreak && x + advance > width && x > 0)
+            {
+                line++; x = 0;
+                if (lastBreak >= 0)
+                    for (int j = lastBreak + 1; j < i; j++)
+                    {
+                        positions[j] = new Point(x, line);
+                        x += Measure(Engine.Glyphs[j].Text).Advance;
+                    }
+                lastBreak = -1;
+            }
+            positions.Add(new Point(x, line));
+            x += advance;
+            if (glyph.IsBreak) lastBreak = i;
+        }
+        caretX = x;
+        caretLine = line;
     }
 
     private GlyphDrawing Measure(string text)
