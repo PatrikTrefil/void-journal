@@ -119,17 +119,19 @@ public sealed class JournalSurface : FrameworkElement
             var transform = new TranslateTransform(origin.X, origin.Y);
             transform.Freeze();
             dc.PushTransform(transform);
-            dc.PushOpacity(highContrast && progress == 0 ? 1 : opacity);
+            // Brush alpha avoids a separate opacity group for every animated glyph.
+            // WPF can draw these directly instead of compositing overlapping layers.
+            byte inkAlpha = highContrast && progress == 0 ? (byte)255 : (byte)Math.Round(Math.Clamp(opacity, 0, 1) * 255);
+            var inkBrush = BrushFor(Color.FromArgb(inkAlpha, ink.R, ink.G, ink.B));
             if (!violet && !reduceMotion && progress > 0)
             {
                 // A left-to-right clipping sweep exposes drifting pieces of each glyph.
                 double remaining = text.Advance * (1 - progress);
                 dc.PushClip(new RectangleGeometry(new Rect(text.Advance - remaining, 0, remaining + 1, lineHeight)));
-                dc.DrawGeometry(BrushFor(ink), null, text.Outline);
+                dc.DrawGeometry(inkBrush, null, text.Outline);
                 dc.Pop();
             }
-            else dc.DrawGeometry(BrushFor(ink), null, text.Outline);
-            dc.Pop();
+            else dc.DrawGeometry(inkBrush, null, text.Outline);
             dc.Pop();
             if (drawParticles)
             {
@@ -199,6 +201,8 @@ public sealed class JournalSurface : FrameworkElement
         if (trim > 0) Engine.Trim(trim);
         // Avoid retaining every grapheme ever typed in long-running sessions.
         if (textCache.Count > 2048) ClearTextCache();
+        // Animated alpha/tint combinations must not accumulate across long sessions.
+        if (brushes.Count > 4096) brushes.Clear();
     }
 
     // Wrapping depends on text and column width, not animation progress. Reuse it
