@@ -1,0 +1,10 @@
+macos/
+windows/
+docs/
+build/
+.dotnet/
+.github/
+.git/
+.env*
+web/.openai/
+**/node_modules/
