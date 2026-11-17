@@ -196,3 +196,7 @@ windows/installer/        Per-user Windows installer definition
 See [AGENTS.md](AGENTS.md) for the product spec and architecture notes.
 
 </details>
+
+## Web version
+
+The browser app lives in [`web/`](web/README.md). Run `cd web` and `npm run dev`, then open http://127.0.0.1:4173. It needs Node.js 22 or later and has no dependencies. Serve `web/dist/` on any static host. Journal text stays in memory; only preferences are stored.

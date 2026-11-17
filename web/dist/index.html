@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-theme="void" data-appearance="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="A quiet space to write your thoughts and let them go. Nothing you write is saved.">
+  <meta name="theme-color" content="#151022">
+  <title>Void Journal — let it go</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <button id="controls-toggle" class="icon-button" aria-label="Show controls" title="Show controls" aria-expanded="false" aria-controls="top-controls bottom-controls"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+  <header id="top-controls" inert>
+    <a class="brand" href="./" aria-label="Void Journal home"><span class="brand-ring"></span><span>void<span class="brand-light"> journal</span></span></a>
+    <nav aria-label="Journal controls">
+      <button id="fullscreen" class="icon-button" title="Enter full screen" aria-label="Enter full screen"><svg viewBox="0 0 24 24"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/></svg></button>
+      <button id="settings-button" class="icon-button" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></button>
+    </nav>
+  </header>
+  <main id="journal">
+    <div class="welcome" id="welcome">
+      <div class="eyebrow">A LITTLE SPACE FOR YOU</div>
+      <h1>Some thoughts just<br>need somewhere to go.</h1>
+      <p>Write freely. Watch your words drift away.<br>Nothing to keep. Nothing to carry.</p>
+      <button id="begin" class="primary">Start writing <span aria-hidden="true">↗</span></button>
+      <button id="show-intro" class="text-button">See how it feels <span aria-hidden="true">→</span></button>
+    </div>
+    <canvas id="canvas" aria-hidden="true"></canvas>
+    <textarea id="input" aria-label="Write your thoughts. Older words disappear as you write. Nothing is saved." autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" data-gramm="false" data-gramm_editor="false"></textarea>
+    <div id="writing-hint" aria-hidden="true">Take a breath. Let it out.</div>
+    <div id="intro-caption" role="status"></div>
+  </main>
+  <footer id="bottom-controls" inert>
+    <div class="theme-switch" role="group" aria-label="Writing theme"><button data-theme="dissolve"><span class="theme-dot dissolve-dot"></span>Dissolve</button><button data-theme="void" class="selected"><span class="theme-dot void-dot"></span>Void</button></div>
+    <span class="privacy"><svg viewBox="0 0 20 20"><rect x="5" y="9" width="10" height="8" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>Nothing is saved. Ever.</span>
+    <button id="release" class="release" disabled>Let everything go <span id="shortcut">Ctrl ↵</span></button>
+  </footer>
+  <dialog id="settings" aria-labelledby="settings-title">
+    <div class="dialog-heading"><h2 id="settings-title">Make yourself comfortable.</h2><button class="icon-button" id="close-settings" aria-label="Close settings">×</button></div>
+    <p class="dialog-subtitle">A little space, just the way you like it.</p>
+    <label for="appearance">Appearance</label><select id="appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <label for="text-size">Text size</label><select id="text-size"><option value="18">Small · 18</option><option value="22">Medium · 22</option><option value="28">Large · 28</option><option value="34">Extra large · 34</option></select>
+    <label class="toggle-row" for="motion"><span>Drifting background<small>A slow, quiet movement in Void.</small></span><input id="motion" type="checkbox"></label>
+    <button id="replay" class="secondary">Replay introduction <span>↗</span></button>
+    <p class="settings-note">Your words stay in this tab’s memory and disappear when you leave. Only these preferences are remembered. Your browser or keyboard may offer its own writing services.</p>
+  </dialog>
+  <dialog id="intro-end" aria-labelledby="intro-title"><div class="intro-symbol">◯</div><h2 id="intro-title">A little less to carry.</h2><p>For a moment that’s entirely yours,<br>try writing in full screen.</p><div class="intro-themes"><button class="secondary" data-theme="dissolve">Dissolve</button><button class="secondary" data-theme="void">Void</button></div><button class="primary" id="intro-fullscreen">Enter full screen ↗</button><button class="text-button" id="intro-skip">Not now</button></dialog>
+</body>
+</html>

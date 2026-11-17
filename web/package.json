@@ -1,0 +1,7 @@
+{
+  "name": "void-journal-web",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node server.js", "test": "node --test engine.test.js" },
+  "engines": { "node": "22.x" }
+}
