@@ -8,3 +8,5 @@ obj/
 .dotnet/
 .vs/
 .vercel/
+.vercel
+.env*

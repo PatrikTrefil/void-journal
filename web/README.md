@@ -8,6 +8,8 @@ Includes Dissolve and Void, System/Light/Dark appearance, four text sizes, a dem
 
 Controls are hidden by default. The quiet three-dot button in the upper right reveals the header and footer. Use it again, press Escape, or return to writing to hide them. Keyboard shortcuts work while controls are hidden.
 
+The revealed footer links to the macOS universal ZIP, Windows x64 installer, and latest GitHub release for other downloads including Windows ARM64. Update the two direct asset URLs when publishing a new desktop version.
+
 Writing lives only in JavaScript memory and the transient input buffer. It is never sent to a server or stored. Leaving/reloading clears it. Only the explicit preference fields are stored in localStorage. Browser extensions, keyboards, and browser writing services remain outside the app’s control. There are no external assets, analytics, accounts, or application network requests.
 
 The canvas uses platform font rendering; it does not provide the native apps’ exact glyph-outline particle breakup. Dissolve emits drifting particles as letters fade. Native mobile input and composition are captured by a textarea; the visual journal is a canvas, so full screen-reader access to the changing text is limited.
